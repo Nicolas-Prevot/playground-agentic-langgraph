@@ -1,0 +1,22 @@
+name: Reference checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+      # setup-uv publishes no floating major tag from v8 onwards; pin the full version.
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --frozen --all-extras
+      - run: uv run ruff check .
+      - run: uv run pyright
+      - run: uv run pytest

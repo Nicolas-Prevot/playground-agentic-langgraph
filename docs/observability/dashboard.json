@@ -1,0 +1,512 @@
+{
+  "uid": "langgraph-resumable",
+  "title": "LangGraph · Resumable job",
+  "tags": [
+    "langgraph",
+    "opentelemetry"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "type": "textbox",
+        "label": "Service",
+        "query": "langgraph-resumable-demo",
+        "current": {
+          "text": "langgraph-resumable-demo",
+          "value": "langgraph-resumable-demo"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Invocation outcomes (cumulative per live process)",
+      "type": "timeseries",
+      "description": "Counts invocation outcomes, not unique business jobs. Series disappear when a short-lived process becomes stale.",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (workflow_phase, workflow_outcome) (playground_job_invocations_total{service_name=\"$service\"})",
+          "legendFormat": "{{workflow_phase}} / {{workflow_outcome}}",
+          "range": true,
+          "exemplar": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Worker attempt outcomes",
+      "type": "timeseries",
+      "description": "Includes each actual execution; graph retry and crash replay have different meanings.",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (work_outcome) (playground_worker_attempts_total{service_name=\"$service\"})",
+          "legendFormat": "{{work_outcome}}",
+          "range": true,
+          "exemplar": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Workflow p95 duration (5 minute rate)",
+      "type": "timeseries",
+      "description": "Run --repeat 30 --interval 2 for enough samples. Tiny fixture calls fall in the first bucket; use live calls to explore realistic latency.",
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(playground_job_duration_seconds_bucket{service_name=\"$service\"}[5m])))",
+          "legendFormat": "p95",
+          "range": true,
+          "exemplar": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Worker duration buckets and trace exemplars",
+      "type": "timeseries",
+      "description": "Exemplar markers carry actual durations and trace links. Open in Explore to inspect exemplar details.",
+      "gridPos": {
+        "x": 12,
+        "y": 7,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "playground_worker_duration_seconds_bucket{service_name=\"$service\",work_outcome=\"completed\"}",
+          "legendFormat": "le={{le}}",
+          "range": true,
+          "exemplar": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Model input tokens (reported usage)",
+      "type": "timeseries",
+      "description": "Sum of the released GenAI token histogram; fixture counts are synthetic. Not a billing ledger.",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 8,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum (gen_ai_client_token_usage_sum{service_name=\"$service\",gen_ai_token_type=\"input\"})",
+          "legendFormat": "input",
+          "range": true,
+          "exemplar": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Model output tokens (reported usage)",
+      "type": "timeseries",
+      "description": "Sum of the released GenAI token histogram; fixture counts are synthetic. Not a billing ledger.",
+      "gridPos": {
+        "x": 8,
+        "y": 14,
+        "w": 8,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum (gen_ai_client_token_usage_sum{service_name=\"$service\",gen_ai_token_type=\"output\"})",
+          "legendFormat": "output",
+          "range": true,
+          "exemplar": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Executed domain retries",
+      "type": "timeseries",
+      "description": "A resumed crashed attempt keeps its original attempt number and does not increment domain retries.",
+      "gridPos": {
+        "x": 16,
+        "y": 14,
+        "w": 8,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum (playground_worker_retries_total{service_name=\"$service\"})",
+          "legendFormat": "retry attempts",
+          "range": true,
+          "exemplar": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Active worker executions",
+      "type": "timeseries",
+      "description": "Sub-export-interval bursts can be invisible. Use traces to inspect concurrency of fast batches.",
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum (playground_worker_active{service_name=\"$service\"})",
+          "legendFormat": "active",
+          "range": true,
+          "exemplar": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Collector export queue occupancy",
+      "type": "timeseries",
+      "description": "Inspect queue capacity, send_failed, enqueue_failed and receiver_refused metrics in Explore when this grows.",
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "otelcol_exporter_queue_size{exporter=\"otlp_http/lgtm\"}",
+          "legendFormat": "{{data_type}}",
+          "range": true,
+          "exemplar": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Streaming first-chunk p95",
+      "type": "timeseries",
+      "description": "Requires --stream and repeated runs. Chunks are not tokens; fixture timings do not model provider latency.",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_operation_time_to_first_chunk_seconds_bucket{service_name=\"$service\"}[5m])))",
+          "legendFormat": "p95",
+          "range": true,
+          "exemplar": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Streaming inter-chunk p95",
+      "type": "timeseries",
+      "description": "Requires --stream and repeated runs. Chunks are not tokens; fixture timings do not model provider latency.",
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_operation_time_per_output_chunk_seconds_bucket{service_name=\"$service\"}[5m])))",
+          "legendFormat": "p95",
+          "range": true,
+          "exemplar": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Correlated application logs",
+      "type": "logs",
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 24,
+        "h": 9
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"$service\"}",
+          "queryType": "range"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    }
+  ]
+}

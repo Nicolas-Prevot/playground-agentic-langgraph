@@ -1,0 +1,73 @@
+# Application SDK configuration, separate from the Collector pipeline configuration.
+# Values come from the environment loaded by uv --env-file; no secrets belong here.
+file_format: "1.1"
+resource:
+  attributes:
+    - name: service.name
+      value: ${OTEL_SERVICE_NAME:-langgraph-resumable-demo}
+    - name: service.version
+      value: "0.1.0"
+  attributes_list: ${OTEL_RESOURCE_ATTRIBUTES:-deployment.environment.name=local}
+  detection/development:
+    detectors:
+      - service: {}
+propagator:
+  composite:
+    - tracecontext: {}
+tracer_provider:
+  sampler:
+    parent_based:
+      root:
+        trace_id_ratio_based:
+          ratio: ${OTEL_TRACES_SAMPLER_ARG:-1.0}
+  processors:
+    - batch:
+        schedule_delay: 1000
+        export_timeout: 5000
+        max_queue_size: 2048
+        max_export_batch_size: 256
+        exporter:
+          playground_safe:
+            protocol: console
+meter_provider:
+  exemplar_filter: trace_based
+  views:
+    - selector:
+        instrument_name: playground.job.*
+      stream:
+        attribute_keys:
+          included: [workflow.name, workflow.phase, workflow.outcome]
+    - selector:
+        instrument_name: playground.worker.*
+      stream:
+        attribute_keys:
+          included: [workflow.name, work.outcome]
+    - selector:
+        instrument_name: gen_ai.*
+      stream:
+        attribute_keys:
+          included:
+            - gen_ai.operation.name
+            - gen_ai.provider.name
+            - gen_ai.request.model
+            - gen_ai.response.model
+            - gen_ai.token.type
+            - gen_ai.workflow.name
+            - gen_ai.agent.name
+            - gen_ai.tool.name
+            - error.type
+  readers:
+    - periodic:
+        interval: 5000
+        timeout: 5000
+        exporter:
+          console: {}
+logger_provider:
+  processors:
+    - batch:
+        schedule_delay: 1000
+        export_timeout: 5000
+        max_queue_size: 2048
+        max_export_batch_size: 256
+        exporter:
+          console: {}

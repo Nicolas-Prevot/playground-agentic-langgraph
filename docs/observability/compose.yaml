@@ -1,0 +1,33 @@
+name: langgraph-observability
+
+services:
+  lgtm:
+    image: grafana/otel-lgtm:0.35.0
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - lgtm-data:/data
+      - ./dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/langgraph.yaml:ro
+      - ./dashboard.json:/otel-lgtm/langgraph-dashboard.json:ro
+    # This all-in-one image is a development backend with anonymous Grafana access.
+    # Do not expose it to a network or reuse this authentication setup in production.
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+
+  collector:
+    # 0.162.0 currently lacks its multi-platform manifest; avoid an architecture-specific tag.
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    depends_on:
+      lgtm:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:13133:13133"
+    volumes:
+      - ./collector.yaml:/etc/otelcol/config.yaml:ro
+    mem_limit: 256m
+
+volumes:
+  lgtm-data:

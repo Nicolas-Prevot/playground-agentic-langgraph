@@ -1,0 +1,65 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+  # Observe this Collector's queues, refused data, and export failures as well.
+  prometheus/self:
+    config:
+      scrape_configs:
+        - job_name: playground-collector
+          scrape_interval: 5s
+          static_configs:
+            - targets: ["127.0.0.1:8888"]
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 192
+    spike_limit_mib: 48
+  batch:
+    timeout: 1s
+    send_batch_size: 512
+    send_batch_max_size: 1024
+
+exporters:
+  otlp_http/lgtm:
+    endpoint: http://lgtm:4318
+    timeout: 5s
+    sending_queue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 256
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 5s
+      max_elapsed_time: 30s
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 127.0.0.1
+                port: 8888
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/lgtm]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/lgtm]
+    metrics:
+      receivers: [otlp, prometheus/self]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/lgtm]
